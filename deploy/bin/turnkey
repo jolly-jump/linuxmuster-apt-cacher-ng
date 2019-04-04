@@ -1,0 +1,197 @@
+#!/usr/bin/python3
+#
+# turnkey for apt-cacher-ng docker app
+# frank@linuxmuster.net
+# tobias.kuechel@linuxmuster.net
+# 20180404
+#
+
+import configparser
+import datetime
+import getopt
+import os
+import sys
+import re
+
+def usage():
+    print('Usage: turnkey [options]')
+    print(' [options] may be:')
+    print(' -c <file>, --config=<file> : path to ini file with setup values')
+    print(' -r <file>, --reconfigure=<file> : path to ini file with setup values')
+    print(' -h,        --help          : print this help')
+
+# default values
+config = None
+tpldir = "./deploy/templates"
+
+## functions start
+# print without linefeed
+def printr(msg):
+    print(msg, end='', flush=True)
+
+# return datetime string
+def dtStr():
+    return "{:%Y%m%d%H%M%S}".format(datetime.datetime.now())
+
+# return content of text file
+def readTextfile(tfile):
+    if not os.path.isfile(tfile):
+        return False, None
+    try:
+        infile = open(tfile , 'r')
+        content = infile.read()
+        infile.close()
+        return True, content
+    except:
+        print('Cannot read ' + tfile + '!')
+        return False, None
+
+# write textfile
+def writeTextfile(tfile, content, flag):
+    try:
+        outfile = open(tfile, flag)
+        outfile.write(content)
+        outfile.close()
+        return True
+    except:
+        print('Failed to write ' + tfile + '!')
+        return False
+
+def yes_no(answer):
+    yes = set(['yes','y', 'ye'])
+    no = set(['no','n'])
+     
+    while True:
+        choice = input(answer).lower()
+        if choice in yes:
+           return True
+        elif choice in no:
+           return False
+        else:
+           print("Please respond with 'yes' or 'no'")
+
+# Delete configuration without db data
+def confDelete():
+    print("This action deletes your config files an recreates them.")
+    print("  * All changes you made in your configs will be LOST!")
+    print("")
+    doit=yes_no("Do you really want to continue?")
+    if (doit):
+        for f in os.listdir("./config"):
+            try:
+                os.remove("./config/"+f)
+            except OSError:
+                pass
+        try: 
+            os.remove("docker-compose.yml")
+        except OSError:
+            pass
+            
+    else: 
+        print("Aborting.");
+        sys.exit()
+
+
+    
+
+# create config from ini
+def turnkey():
+    # read ini file
+    try:
+        print('Reading setup data ...')
+        setup = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))
+        setup.read(config)
+        containername = setup.get('setup', 'containername')
+        lmnversion = setup.get('setup', 'lmnversion')
+        limit = setup.get('setup', 'limit')
+    except:
+        print ('*** Error reading config file.')
+        return 1
+
+
+    turnthekey = True
+    if os.path.isfile("./config/cron-apt-cacher-ng-shrink"):
+        print("*** Configuration for containername " + containername + " exists!")
+        turnthekey = False
+    if os.path.isfile("./docker-compose.yml"):
+        print("docker-compose.yml exists!")
+        turnthekey = False
+
+    if not turnthekey:
+        print("*** Exit: Not overwriting existing configuration.")
+        return 1
+
+
+    # create docker configuration
+    print('Creating initial configuration from templates.')
+    for f in os.listdir(tpldir):
+        infile = tpldir + '/' + f
+        # read template
+        rc, content = readTextfile(infile)
+        if not rc:
+            return 1
+
+        # replace placeholders
+        content = content.replace('@@CONTAINERNAME@@', containername)
+        content = content.replace('@@LIMIT@@', limit)
+        # extract oufile path from first line
+        # and remove first line
+        firstline = re.findall(r'# .*\n', content)[0]
+        outfile = firstline.partition(' ')[2].replace('\n', '')
+        content = content.split("\n",1)[1];
+        print(" Infile: " + infile + " -> " + outfile) 
+        # write outfile
+        if not writeTextfile(outfile, content, 'w'):
+            return 1
+
+    # apt-cacher-ng braucht keine nginx config, weil port 3142 unverschlüsselt üblich ist
+    # linking nginx config
+    #try:
+    #    os.remove("/etc/nginx/sites-enabled/"+servicehost+"."+servicedomain)
+    #except OSError:
+    #    pass
+    #os.symlink(os.getcwd()+"/config/nginx."+servicehost+".conf","/etc/nginx/sites-enabled/"+servicehost+"."+servicedomain)
+    #os.system("/etc/init.d/nginx restart")
+
+    return 0
+## functions end
+
+# get cli args
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "c:r:hr", ["config=", "reconfigure=", "help"])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print(err) # will print something like "option -a not recognized"
+    usage()
+    sys.exit(2)
+
+# evaluate options
+for o, a in opts:
+    if o in ("-c", "--config"):
+        if os.path.isfile(a):
+            config = a
+            rc = turnkey()
+        else:
+            usage()
+            sys.exit()
+    elif o in ("-r", "--reconfigure"):
+        config = a
+        confDelete()
+        rc=turnkey()
+    elif o in ("-h", "--help"):
+        usage()
+        sys.exit()
+    else:
+        assert False, "unhandled option"
+
+if (config == None):
+    usage()
+    sys.exit()
+
+
+if rc == 0:
+    print('\nScript finished successfully!')
+else:
+    print('\nScript finished with error!')
+
+sys.exit(rc)

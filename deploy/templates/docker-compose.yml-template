@@ -1,0 +1,11 @@
+# ./docker-compose.yml
+version: '2'
+services:
+  apt-cacher-ng:
+    container_name: @@CONTAINERNAME@@
+    restart: always
+    image: hgkvplan/apt-cacher-ng
+    ports:
+      - 3142:3142
+    volumes:
+      - ./config/cron-apt-cacher-ng-shrink:/etc/cron.weekly/cron-apt-cacher-ng-shrink
