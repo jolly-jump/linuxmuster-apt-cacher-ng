@@ -126,6 +126,7 @@ def turnkey():
     print('Creating initial configuration from templates.')
     for f in os.listdir(tpldir):
         infile = tpldir + '/' + f
+        print(infile)
         # read template
         rc, content = readTextfile(infile)
         if not rc:

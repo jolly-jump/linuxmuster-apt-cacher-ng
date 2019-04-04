@@ -1,3 +1,4 @@
+# ./config/cron-apt-cacher-ng-shrink
 #!/bin/sh
-
+#
 /usr/lib/apt-cacher-ng/acngtool shrink @@LIMIT@@ -f -c /etc/apt-cacher-ng SocketPath=/var/run/apt-cacher-ng/socket

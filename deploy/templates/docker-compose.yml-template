@@ -4,7 +4,7 @@ services:
   apt-cacher-ng:
     container_name: @@CONTAINERNAME@@
     restart: always
-    image: hgkvplan/apt-cacher-ng
+    image: hgkvplan/apt-cacher-ng:1.0
     ports:
       - 3142:3142
     volumes:
