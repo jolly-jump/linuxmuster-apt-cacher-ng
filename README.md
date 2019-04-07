@@ -35,7 +35,17 @@ In einem Ubuntu/Debian-basierten System kann man nun den Proxy in der
 ```
 Acquire::http { Proxy "http://172.16.17.2:3142"; };
 Acquire::https { Proxy "https://"; };
-
+```
+Wer bei obiger Konfiguration eine Ausnahme braucht, kann diese so definieren: 
+```
+Acquire::http::Proxy { 
+    packages.gitlab.com DIRECT;
+    zweite.ausnahme.de DIRECT;
+}
 ```
 
+Wer nur manche Repositories cachen will, nicht aber generell, der kann direkt in ``/etc/apt/sources.list`` und ähnlichen Dateien direkt den Proxy eintragen:
+```
+deb http://172.16.17.2:3142/ftp.debian.org/debian stable main contrib non-free
+```
 
